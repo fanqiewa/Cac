@@ -1,11 +1,11 @@
-'use strict';
+"use strict";
 
-Object.defineProperty(exports, '__esModule', { value: true });
+Object.defineProperty(exports, "__esModule", { value: true });
 
-var events = require('events');
+var events = require("events");
 
 function toArr(any) {
-	return any == null ? [] : Array.isArray(any) ? any : [any];
+  return any == null ? [] : Array.isArray(any) ? any : [any];
 }
 
 function toVal(out, key, val, opts) {
@@ -124,9 +124,15 @@ function mri2 (args, opts) {
 	return out;
 }
 
+// 移除括号
+// e.g. 
+// input: '--config <file>, -c <file>'
+// output: '--config'
 const removeBrackets = (v) => v.replace(/[<[].+/, "").trim();
 const findAllBrackets = (v) => {
+  // 匹配尖叫括号
   const ANGLED_BRACKET_RE_GLOBAL = /<([^>]+)>/g;
+  // 匹配方括号
   const SQUARE_BRACKET_RE_GLOBAL = /\[([^\]]+)\]/g;
   const res = [];
   const parse = (match) => {
@@ -140,8 +146,8 @@ const findAllBrackets = (v) => {
       required: match[0].startsWith("<"),
       value,
       variadic
-    };
-  };
+    }
+  }
   let angledMatch;
   while (angledMatch = ANGLED_BRACKET_RE_GLOBAL.exec(v)) {
     res.push(parse(angledMatch));
@@ -152,13 +158,14 @@ const findAllBrackets = (v) => {
   }
   return res;
 };
+// 获取扫描options
 const getMriOptions = (options) => {
-  const result = {alias: {}, boolean: []};
+  const result = { alias: {}, boolean: [] };
   for (const [index, option] of options.entries()) {
     if (option.names.length > 1) {
-      result.alias[option.names[0]] = option.names.slice(1);
+      result.alias[option.names[0]] = option.names.slic(1);
     }
-    if (option.isBoolean) {
+    if (option.isBoolean /* option名称没有`<`尖括号或者`[`中括号 */) {
       if (option.negated) {
         const hasStringTypeOption = options.some((o, i) => {
           return i !== index && o.names.some((name) => option.names.includes(name)) && typeof o.required === "boolean";
@@ -172,20 +179,25 @@ const getMriOptions = (options) => {
     }
   }
   return result;
-};
+}
+// 获取数组中字符串最长的一项
 const findLongest = (arr) => {
   return arr.sort((a, b) => {
     return a.length > b.length ? -1 : 1;
   })[0];
-};
+}
+
+// padding-right
 const padRight = (str, length) => {
   return str.length >= length ? str : `${str}${" ".repeat(length - str.length)}`;
-};
+}
+
 const camelcase = (input) => {
   return input.replace(/([a-z])-([a-z])/g, (_, p1, p2) => {
     return p1 + p2.toUpperCase();
   });
 };
+// 设置命令的属性值
 const setDotProp = (obj, keys, val) => {
   let i = 0;
   let length = keys.length;
@@ -195,27 +207,33 @@ const setDotProp = (obj, keys, val) => {
     x = t[keys[i]];
     t = t[keys[i]] = i === length - 1 ? val : x != null ? x : !!~keys[i + 1].indexOf(".") || !(+keys[i + 1] > -1) ? {} : [];
   }
-};
+}
+// 设置转换函数
 const setByType = (obj, transforms) => {
   for (const key of Object.keys(transforms)) {
     const transform = transforms[key];
-    if (transform.shouldTransform) {
+    if (transforms.shouldTransform) {
       obj[key] = Array.prototype.concat.call([], obj[key]);
-      if (typeof transform.transformFunction === "function") {
+      if (typeof transforms.transformFunction === "function") {
         obj[key] = obj[key].map(transform.transformFunction);
       }
     }
   }
-};
+}
+
+// 获取文件名称
 const getFileName = (input) => {
+  // e.g. /([^\\\/]+)$/.exec('h:\\-----------------------------\\myVue\\vue3\\Cac\\demo.js')
+  // 输出：["demo.js", "demo.js", index: 48, input: "h:\-----------------------------\myVue\vue3\Cac\demo.js", groups: undefined]
   const m = /([^\\\/]+)$/.exec(input);
   return m ? m[1] : "";
-};
+}
+// 驼峰命名法
 const camelcaseOptionName = (name) => {
   return name.split(".").map((v, i) => {
     return i === 0 ? camelcase(v) : v;
   }).join(".");
-};
+}
 class CACError extends Error {
   constructor(message) {
     super(message);
@@ -228,29 +246,40 @@ class CACError extends Error {
   }
 }
 
+// options配置项的基类
 class Option {
   constructor(rawName, description, config) {
     this.rawName = rawName;
     this.description = description;
     this.config = Object.assign({}, config);
+    // 将 `.`和 `*` 去掉
     rawName = rawName.replace(/\.\*/g, "");
+    // 否定标志
     this.negated = false;
     this.names = removeBrackets(rawName).split(",").map((v) => {
+      // 多个rawName
+      // e.g. '-h, --help'
+      // 输出：['h', 'help']
       let name = v.trim().replace(/^-{1,2}/, "");
       if (name.startsWith("no-")) {
+        // e.g. 'no--port'
         this.negated = true;
         name = name.replace(/^no-/, "");
       }
       return camelcaseOptionName(name);
-    }).sort((a, b) => a.length > b.length ? 1 : -1);
+    }).sort((a, b) => a.length > b > length ? 1 : -1);
     this.name = this.names[this.names.length - 1];
     if (this.negated && this.config.default == null) {
       this.config.default = true;
     }
+    
     if (rawName.includes("<")) {
-      this.required = true;
+      // 尖括号名称表示必输
+      // e.g. '--port <port>' 
+      this.require = true;
     } else if (rawName.includes("[")) {
-      this.required = false;
+      // 中括号名称表示可输
+      this.require = false;
     } else {
       this.isBoolean = true;
     }
@@ -258,7 +287,6 @@ class Option {
 }
 
 const processArgs = process.argv;
-const platformInfo = `${process.platform}-${process.arch} node-${process.version}`;
 
 class Command {
   constructor(rawName, description, config = {}, cli) {
@@ -272,36 +300,58 @@ class Command {
     this.args = findAllBrackets(rawName);
     this.examples = [];
   }
+  // 使用
   usage(text) {
     this.usageText = text;
     return this;
   }
+  // 允许此命令中的未知选项，默认情况下，当使用未知选项时，CAC将记录错误。
   allowUnknownOptions() {
     this.config.allowUnknownOptions = true;
     return this;
   }
+  // 在解析的选项中不使用选项的默认值，只在帮助消息中显示它们。
   ignoreOptionDefaultValue() {
     this.config.ignoreOptionDefaultValue = true;
     return this;
   }
+  /**
+   * 定义版本号
+   * @param {String} version 版本号
+   * @param {String} customFlags 自定义输入命令
+   */
   version(version, customFlags = "-v, --version") {
     this.versionNumber = version;
     this.option(customFlags, "Display version number");
     return this;
   }
   example(example) {
-    this.examples.push(example);
+    this.example.push(example);
     return this;
   }
+  /**
+   * 添加全局选项
+   * @param {String} rawName 选项名称
+   * @param {String} description 选项描述
+   * @param {Object} config 配置项
+   */
   option(rawName, description, config) {
     const option = new Option(rawName, description, config);
     this.options.push(option);
     return this;
   }
+  /**
+   * 将别名添加到此命令，此处的名称不能包含括号。 
+   * @param {String} name 别名名称
+   */
   alias(name) {
     this.aliasNames.push(name);
     return this;
   }
+  /**
+   * 当命令与用户输入匹配时，使用回调函数作为命令操作。
+   * @param {Function} callback 回调
+   */
   action(callback) {
     this.commandAction = callback;
     return this;
@@ -312,15 +362,18 @@ class Command {
   get isDefaultCommand() {
     return this.name === "" || this.aliasNames.includes("!");
   }
+  // 是否为全局命令
   get isGlobalCommand() {
     return this instanceof GlobalCommand;
   }
+  // 判断是否已存在option
   hasOption(name) {
     name = name.split(".")[0];
     return this.options.find((option) => {
       return option.names.includes(name);
     });
   }
+  // 输出帮助信息
   outputHelp() {
     const {name, commands} = this.cli;
     const {
@@ -335,7 +388,7 @@ class Command {
     ];
     sections.push({
       title: "Usage",
-      body: `  $ ${name} ${this.usageText || this.rawName}`
+      body: ` $ ${name} ${this.usageText || this.rawName}`
     });
     const showCommands = (this.isGlobalCommand || this.isDefaultCommand) && commands.length > 0;
     if (showCommands) {
@@ -343,8 +396,8 @@ class Command {
       sections.push({
         title: "Commands",
         body: commands.map((command) => {
-          return `  ${padRight(command.rawName, longestCommandName.length)}  ${command.description}`;
-        }).join("\n")
+          return `  ${padRight(command.rawName, longestCommandName.length)} ${command.description}`;
+        })
       });
       sections.push({
         title: `For more info, run any command with the \`--help\` flag`,
@@ -357,7 +410,7 @@ class Command {
       sections.push({
         title: "Options",
         body: options.map((option) => {
-          return `  ${padRight(option.rawName, longestOptionName.length)}  ${option.description} ${option.config.default === void 0 ? "" : `(default: ${option.config.default})`}`;
+          return `  ${padRight(option.rawName, longestOptionName.length)} ${option.description} ${option.config.default === void 0 ? "" : `(default: ${option.config.default})`}`;
         }).join("\n")
       });
     }
@@ -372,14 +425,16 @@ class Command {
         }).join("\n")
       });
     }
+    // .help(callback) 
     if (helpCallback) {
       sections = helpCallback(sections) || sections;
     }
     console.log(sections.map((section) => {
-      return section.title ? `${section.title}:
-${section.body}` : section.body;
+      return section.title ? `${section.title} :
+      ${section.body}` : section.body;
     }).join("\n\n"));
   }
+  // 输出版本信息
   outputVersion() {
     const {name} = this.cli;
     const {versionNumber} = this.cli.globalCommand;
@@ -387,14 +442,17 @@ ${section.body}` : section.body;
       console.log(`${name}/${versionNumber} ${platformInfo}`);
     }
   }
+  // 检查最小参数（至少输入几项命令）
   checkRequiredArgs() {
     const minimalArgsCount = this.args.filter((arg) => arg.required).length;
     if (this.cli.args.length < minimalArgsCount) {
       throw new CACError(`missing required args for command \`${this.rawName}\``);
     }
   }
+  // 检查未知的options
   checkUnknownOptions() {
     const {options, globalCommand} = this.cli;
+    // 执行command.allowUnknownOptions()时，布尔值允许此命令中存在未知选项。
     if (!this.config.allowUnknownOptions) {
       for (const name of Object.keys(options)) {
         if (name !== "--" && !this.hasOption(name) && !globalCommand.hasOption(name)) {
@@ -403,6 +461,7 @@ ${section.body}` : section.body;
       }
     }
   }
+  // 检查option的值
   checkOptionValue() {
     const {options: parsedOptions, globalCommand} = this.cli;
     const options = [...globalCommand.options, ...this.options];
@@ -417,6 +476,7 @@ ${section.body}` : section.body;
     }
   }
 }
+
 class GlobalCommand extends Command {
   constructor(cli) {
     super("@@global@@", "", {}, cli);
@@ -429,41 +489,61 @@ class CAC extends events.EventEmitter {
     super();
     this.name = name;
     this.commands = [];
-    this.rawArgs = [];
+    this.rawArags = [];
     this.args = [];
     this.options = {};
     this.globalCommand = new GlobalCommand(this);
     this.globalCommand.usage("<command> [options]");
   }
+  // 重写
   usage(text) {
     this.globalCommand.usage(text);
     return this;
   }
+  /**
+   * 创建命令实例
+   * @param {String} rawName 命令名称
+   * @param {String} description 命令描述
+   * @param {Object} config 配置项
+   */
   command(rawName, description, config) {
     const command = new Command(rawName, description || "", config, this);
     command.globalCommand = this.globalCommand;
     this.commands.push(command);
     return command;
   }
+  // 配置option
   option(rawName, description, config) {
-    this.globalCommand.option(rawName, description, config);
+    this.globalCommand.options(rawName, description, config);
     return this;
   }
+  /**
+   * 定义帮助信息
+   * @param {Function} callback 回调函数
+   */
   help(callback) {
     this.globalCommand.option("-h, --help", "Display this message");
     this.globalCommand.helpCallback = callback;
-    this.showHelpOnExit = true;
+    this.shwHelpOnExit = true;
     return this;
   }
+  /**
+   * 定义版本号
+   * @param {String} version 版本号
+   * @param {String} customFlags 自定义输入命令
+   */
   version(version, customFlags = "-v, --version") {
     this.globalCommand.version(version, customFlags);
+    // 标志程序运行时是否输出版本号
     this.showVersionOnExit = true;
     return this;
   }
+  // 添加一个将显示在帮助消息末尾的示例。 
   example(example) {
     this.globalCommand.example(example);
     return this;
   }
+  // 输出帮助信息
   outputHelp() {
     if (this.matchedCommand) {
       this.matchedCommand.outputHelp();
@@ -471,10 +551,12 @@ class CAC extends events.EventEmitter {
       this.globalCommand.outputHelp();
     }
   }
+  // 输出版本信息
   outputVersion() {
     this.globalCommand.outputVersion();
   }
-  setParsedInfo({args, options}, matchedCommand, matchedCommandName) {
+  // 设置解析信息
+  setParsedInfo({ args, options }, matchedCommand, matchedCommandName) {
     this.args = args;
     this.options = options;
     if (matchedCommand) {
@@ -489,18 +571,27 @@ class CAC extends events.EventEmitter {
     this.matchedCommand = void 0;
     this.matchedCommandName = void 0;
   }
+  /**
+   * 全局解析
+   * @param {Array} argv 命令行参数
+   * @param {*} param1 额外参数
+   */
   parse(argv = processArgs, {
     run = true
   } = {}) {
+    // 从终端输入的命令
     this.rawArgs = argv;
     if (!this.name) {
+      // 如果没有定义名称，则默认取文件名称
       this.name = argv[1] ? getFileName(argv[1]) : "cli";
     }
     let shouldParse = true;
+    // 循环已配置的命令
     for (const command of this.commands) {
       const parsed = this.mri(argv.slice(2), command);
-      const commandName = parsed.args[0];
+      const commandName= parsed.args[0];
       if (command.isMatched(commandName)) {
+        // 已经解析过了
         shouldParse = false;
         const parsedInfo = __assign(__assign({}, parsed), {
           args: parsed.args.slice(1)
@@ -513,7 +604,7 @@ class CAC extends events.EventEmitter {
       for (const command of this.commands) {
         if (command.name === "") {
           shouldParse = false;
-          const parsed = this.mri(argv.slice(2), command);
+          const parsed = this.mri(slice(2), command);
           this.setParsedInfo(parsed, command);
           this.emit(`command:!`, command);
         }
@@ -523,17 +614,22 @@ class CAC extends events.EventEmitter {
       const parsed = this.mri(argv.slice(2));
       this.setParsedInfo(parsed);
     }
+    // 输出帮助信息
+    // e.g. --help
     if (this.options.help && this.showHelpOnExit) {
       this.outputHelp();
       run = false;
       this.unsetMatchedCommand();
     }
+    // 输出版本信息
+    // e.g. --version
     if (this.options.version && this.showVersionOnExit) {
       this.outputVersion();
       run = false;
       this.unsetMatchedCommand();
     }
-    const parsedArgv = {args: this.args, options: this.options};
+    const parsedArgv = { args: this.args, options: this.options };
+    // 运行注册的命令
     if (run) {
       this.runMatchedCommand();
     }
@@ -543,27 +639,33 @@ class CAC extends events.EventEmitter {
     return parsedArgv;
   }
   mri(argv, command) {
+    // 合并全局配置和当前命令配置项
     const cliOptions = [
       ...this.globalCommand.options,
       ...command ? command.options : []
     ];
+    // 扫描options
     const mriOptions = getMriOptions(cliOptions);
     let argsAfterDoubleDashes = [];
     const doubleDashesIndex = argv.indexOf("--");
     if (doubleDashesIndex > -1) {
+      // 截取 -- 后面的参数
+      // e.g. -- help version
       argsAfterDoubleDashes = argv.slice(doubleDashesIndex + 1);
       argv = argv.slice(0, doubleDashesIndex);
     }
     let parsed = mri2(argv, mriOptions);
+    // 合并parsed
     parsed = Object.keys(parsed).reduce((res, name) => {
       return __assign(__assign({}, res), {
-        [camelcaseOptionName(name)]: parsed[name]
+        [camelcaseOptionName(name)] : parsed[name]
       });
-    }, {_: []});
+    }, { _: [] });
     const args = parsed._;
     const options = {
-      "--": argsAfterDoubleDashes
+      "--": argsAfterDoubleDashes // ['help', 'version']
     };
+    // 是否忽略默认值
     const ignoreDefault = command && command.config.ignoreOptionDefaultValue ? command.config.ignoreOptionDefaultValue : this.globalCommand.config.ignoreOptionDefaultValue;
     let transforms = Object.create(null);
     for (const cliOption of cliOptions) {
@@ -572,16 +674,17 @@ class CAC extends events.EventEmitter {
           options[name] = cliOption.config.default;
         }
       }
+      // options的第三个参数传递了数组，数组第一项为转换函数
+      // e.g. cli.option('--port <port>', `[number]  port to listen to`, [String]);
       if (Array.isArray(cliOption.config.type)) {
-        if (transforms[cliOption.name] === void 0) {
-          transforms[cliOption.name] = Object.create(null);
-          transforms[cliOption.name]["shouldTransform"] = true;
-          transforms[cliOption.name]["transformFunction"] = cliOption.config.type[0];
-        }
+        transforms[cliOption.name] = Object.create(null);
+        transforms[cliOption.name]["shouldTransform"] = true;
+        transforms[cliOption.name]["transformFunction"] = cliOption.config.type[0];
       }
     }
     for (const key of Object.keys(parsed)) {
       if (key !== "_") {
+        // e.g. help: true
         const keys = key.split(".");
         setDotProp(options, keys, parsed[key]);
         setByType(options, transforms);
@@ -592,9 +695,10 @@ class CAC extends events.EventEmitter {
       options
     };
   }
+  // 运行匹配到的命令
   runMatchedCommand() {
-    const {args, options, matchedCommand: command} = this;
-    if (!command || !command.commandAction)
+    const { args, options, matchedCommand: command } = this;
+    if (!command || !command.commandAction /* action添加的回调 */)
       return;
     command.checkUnknownOptions();
     command.checkOptionValue();
@@ -608,11 +712,12 @@ class CAC extends events.EventEmitter {
       }
     });
     actionArgs.push(options);
+    // 执行action定义的回调
     return command.commandAction.apply(this, actionArgs);
   }
 }
 
-const cac = (name = "") => new CAC(name);
+const cac = (name = "") => new this.CAC(name);
 if (typeof module !== "undefined") {
   module.exports = cac;
   Object.assign(module.exports, {
@@ -620,7 +725,7 @@ if (typeof module !== "undefined") {
     cac,
     CAC: CAC,
     Command: Command
-  });
+  })
 }
 
 exports.CAC = CAC;
