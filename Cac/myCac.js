@@ -9,119 +9,119 @@ function toArr(any) {
 }
 
 function toVal(out, key, val, opts) {
-	var x, old=out[key], nxt=(
-		!!~opts.string.indexOf(key) ? (val == null || val === true ? '' : String(val))
-		: typeof val === 'boolean' ? val
-		: !!~opts.boolean.indexOf(key) ? (val === 'false' ? false : val === 'true' || (out._.push((x = +val,x * 0 === 0) ? x : val),!!val))
-		: (x = +val,x * 0 === 0) ? x : val
-	);
-	out[key] = old == null ? nxt : (Array.isArray(old) ? old.concat(nxt) : [old, nxt]);
+  var x, old = out[key], nxt = (
+    !!~opts.string.indexOf(key) ? (val == null || val === true ? '' : String(val))
+      : typeof val === 'boolean' ? val
+        : !!~opts.boolean.indexOf(key) ? (val === 'false' ? false : val === 'true' || (out._.push((x = +val, x * 0 === 0) ? x : val), !!val))
+          : (x = +val, x * 0 === 0) ? x : val
+  );
+  out[key] = old == null ? nxt : (Array.isArray(old) ? old.concat(nxt) : [old, nxt]);
 }
 
-function mri2 (args, opts) {
-	args = args || [];
-	opts = opts || {};
+function mri2(args, opts) {
+  args = args || [];
+  opts = opts || {};
 
-	var k, arr, arg, name, val, out={ _:[] };
-	var i=0, j=0, idx=0, len=args.length;
+  var k, arr, arg, name, val, out = { _: [] };
+  var i = 0, j = 0, idx = 0, len = args.length;
 
-	const alibi = opts.alias !== void 0;
-	const strict = opts.unknown !== void 0;
-	const defaults = opts.default !== void 0;
+  const alibi = opts.alias !== void 0;
+  const strict = opts.unknown !== void 0;
+  const defaults = opts.default !== void 0;
 
-	opts.alias = opts.alias || {};
-	opts.string = toArr(opts.string);
-	opts.boolean = toArr(opts.boolean);
+  opts.alias = opts.alias || {};
+  opts.string = toArr(opts.string);
+  opts.boolean = toArr(opts.boolean);
 
-	if (alibi) {
-		for (k in opts.alias) {
-			arr = opts.alias[k] = toArr(opts.alias[k]);
-			for (i=0; i < arr.length; i++) {
-				(opts.alias[arr[i]] = arr.concat(k)).splice(i, 1);
-			}
-		}
-	}
+  if (alibi) {
+    for (k in opts.alias) {
+      arr = opts.alias[k] = toArr(opts.alias[k]);
+      for (i = 0; i < arr.length; i++) {
+        (opts.alias[arr[i]] = arr.concat(k)).splice(i, 1);
+      }
+    }
+  }
 
-	for (i=opts.boolean.length; i-- > 0;) {
-		arr = opts.alias[opts.boolean[i]] || [];
-		for (j=arr.length; j-- > 0;) opts.boolean.push(arr[j]);
-	}
+  for (i = opts.boolean.length; i-- > 0;) {
+    arr = opts.alias[opts.boolean[i]] || [];
+    for (j = arr.length; j-- > 0;) opts.boolean.push(arr[j]);
+  }
 
-	for (i=opts.string.length; i-- > 0;) {
-		arr = opts.alias[opts.string[i]] || [];
-		for (j=arr.length; j-- > 0;) opts.string.push(arr[j]);
-	}
+  for (i = opts.string.length; i-- > 0;) {
+    arr = opts.alias[opts.string[i]] || [];
+    for (j = arr.length; j-- > 0;) opts.string.push(arr[j]);
+  }
 
-	if (defaults) {
-		for (k in opts.default) {
-			name = typeof opts.default[k];
-			arr = opts.alias[k] = opts.alias[k] || [];
-			if (opts[name] !== void 0) {
-				opts[name].push(k);
-				for (i=0; i < arr.length; i++) {
-					opts[name].push(arr[i]);
-				}
-			}
-		}
-	}
+  if (defaults) {
+    for (k in opts.default) {
+      name = typeof opts.default[k];
+      arr = opts.alias[k] = opts.alias[k] || [];
+      if (opts[name] !== void 0) {
+        opts[name].push(k);
+        for (i = 0; i < arr.length; i++) {
+          opts[name].push(arr[i]);
+        }
+      }
+    }
+  }
 
-	const keys = strict ? Object.keys(opts.alias) : [];
+  const keys = strict ? Object.keys(opts.alias) : [];
 
-	for (i=0; i < len; i++) {
-		arg = args[i];
+  for (i = 0; i < len; i++) {
+    arg = args[i];
 
-		if (arg === '--') {
-			out._ = out._.concat(args.slice(++i));
-			break;
-		}
+    if (arg === '--') {
+      out._ = out._.concat(args.slice(++i));
+      break;
+    }
 
-		for (j=0; j < arg.length; j++) {
-			if (arg.charCodeAt(j) !== 45) break; // "-"
-		}
+    for (j = 0; j < arg.length; j++) {
+      if (arg.charCodeAt(j) !== 45) break; // "-"
+    }
 
-		if (j === 0) {
-			out._.push(arg);
-		} else if (arg.substring(j, j + 3) === 'no-') {
-			name = arg.substring(j + 3);
-			if (strict && !~keys.indexOf(name)) {
-				return opts.unknown(arg);
-			}
-			out[name] = false;
-		} else {
-			for (idx=j+1; idx < arg.length; idx++) {
-				if (arg.charCodeAt(idx) === 61) break; // "="
-			}
+    if (j === 0) {
+      out._.push(arg);
+    } else if (arg.substring(j, j + 3) === 'no-') {
+      name = arg.substring(j + 3);
+      if (strict && !~keys.indexOf(name)) {
+        return opts.unknown(arg);
+      }
+      out[name] = false;
+    } else {
+      for (idx = j + 1; idx < arg.length; idx++) {
+        if (arg.charCodeAt(idx) === 61) break; // "="
+      }
 
-			name = arg.substring(j, idx);
-			val = arg.substring(++idx) || (i+1 === len || (''+args[i+1]).charCodeAt(0) === 45 || args[++i]);
-			arr = (j === 2 ? [name] : name);
+      name = arg.substring(j, idx);
+      val = arg.substring(++idx) || (i + 1 === len || ('' + args[i + 1]).charCodeAt(0) === 45 || args[++i]);
+      arr = (j === 2 ? [name] : name);
 
-			for (idx=0; idx < arr.length; idx++) {
-				name = arr[idx];
-				if (strict && !~keys.indexOf(name)) return opts.unknown('-'.repeat(j) + name);
-				toVal(out, name, (idx + 1 < arr.length) || val, opts);
-			}
-		}
-	}
+      for (idx = 0; idx < arr.length; idx++) {
+        name = arr[idx];
+        if (strict && !~keys.indexOf(name)) return opts.unknown('-'.repeat(j) + name);
+        toVal(out, name, (idx + 1 < arr.length) || val, opts);
+      }
+    }
+  }
 
-	if (defaults) {
-		for (k in opts.default) {
-			if (out[k] === void 0) {
-				out[k] = opts.default[k];
-			}
-		}
-	}
+  if (defaults) {
+    for (k in opts.default) {
+      if (out[k] === void 0) {
+        out[k] = opts.default[k];
+      }
+    }
+  }
 
-	if (alibi) {
-		for (k in out) {
-			arr = opts.alias[k] || [];
-			while (arr.length > 0) {
-				out[arr.shift()] = out[k];
-			}
-		}
-	}
+  if (alibi) {
+    for (k in out) {
+      arr = opts.alias[k] || [];
+      while (arr.length > 0) {
+        out[arr.shift()] = out[k];
+      }
+    }
+  }
 
-	return out;
+  return out;
 }
 
 // 移除括号
@@ -163,7 +163,7 @@ const getMriOptions = (options) => {
   const result = { alias: {}, boolean: [] };
   for (const [index, option] of options.entries()) {
     if (option.names.length > 1) {
-      result.alias[option.names[0]] = option.names.slic(1);
+      result.alias[option.names[0]] = option.names.slice(1);
     }
     if (option.isBoolean /* option名称没有`<`尖括号或者`[`中括号 */) {
       if (option.negated) {
@@ -267,12 +267,12 @@ class Option {
         name = name.replace(/^no-/, "");
       }
       return camelcaseOptionName(name);
-    }).sort((a, b) => a.length > b > length ? 1 : -1);
+    }).sort((a, b) => a.length > b.length ? 1 : -1);
     this.name = this.names[this.names.length - 1];
     if (this.negated && this.config.default == null) {
       this.config.default = true;
     }
-    
+
     if (rawName.includes("<")) {
       // 尖括号名称表示必输
       // e.g. '--port <port>' 
@@ -286,7 +286,12 @@ class Option {
   }
 }
 
+// process.argv属性返回数组。
+// 第一个元素是node.exe所在路径。
+// 第二个元数是正在执行JavaScript文件的路径。
+// 其余元素是其他命令行参数。
 const processArgs = process.argv;
+const platformInfo = `${process.platform}-${process.arch} node-${process.version}`;
 
 class Command {
   constructor(rawName, description, config = {}, cli) {
@@ -326,7 +331,7 @@ class Command {
     return this;
   }
   example(example) {
-    this.example.push(example);
+    this.examples.push(example);
     return this;
   }
   /**
@@ -375,7 +380,7 @@ class Command {
   }
   // 输出帮助信息
   outputHelp() {
-    const {name, commands} = this.cli;
+    const { name, commands } = this.cli;
     const {
       versionNumber,
       options: globalOptions,
@@ -414,6 +419,7 @@ class Command {
         }).join("\n")
       });
     }
+    
     if (this.examples.length > 0) {
       sections.push({
         title: "Examples",
@@ -436,8 +442,8 @@ class Command {
   }
   // 输出版本信息
   outputVersion() {
-    const {name} = this.cli;
-    const {versionNumber} = this.cli.globalCommand;
+    const { name } = this.cli;
+    const { versionNumber } = this.cli.globalCommand;
     if (versionNumber) {
       console.log(`${name}/${versionNumber} ${platformInfo}`);
     }
@@ -451,7 +457,7 @@ class Command {
   }
   // 检查未知的options
   checkUnknownOptions() {
-    const {options, globalCommand} = this.cli;
+    const { options, globalCommand } = this.cli;
     // 执行command.allowUnknownOptions()时，布尔值允许此命令中存在未知选项。
     if (!this.config.allowUnknownOptions) {
       for (const name of Object.keys(options)) {
@@ -463,7 +469,7 @@ class Command {
   }
   // 检查option的值
   checkOptionValue() {
-    const {options: parsedOptions, globalCommand} = this.cli;
+    const { options: parsedOptions, globalCommand } = this.cli;
     const options = [...globalCommand.options, ...this.options];
     for (const option of options) {
       const value = parsedOptions[option.name.split(".")[0]];
@@ -484,6 +490,10 @@ class GlobalCommand extends Command {
 }
 
 var __assign = Object.assign;
+
+// const cac_1 = require('./cac');
+// const cli = cac_1.cac(`vite`); 
+// cli为CAC的实例，原型上面有很多方法
 class CAC extends events.EventEmitter {
   constructor(name = "") {
     super();
@@ -495,7 +505,7 @@ class CAC extends events.EventEmitter {
     this.globalCommand = new GlobalCommand(this);
     this.globalCommand.usage("<command> [options]");
   }
-  // 重写
+  // 设置用法
   usage(text) {
     this.globalCommand.usage(text);
     return this;
@@ -514,7 +524,7 @@ class CAC extends events.EventEmitter {
   }
   // 配置option
   option(rawName, description, config) {
-    this.globalCommand.options(rawName, description, config);
+    this.globalCommand.option(rawName, description, config);
     return this;
   }
   /**
@@ -524,7 +534,7 @@ class CAC extends events.EventEmitter {
   help(callback) {
     this.globalCommand.option("-h, --help", "Display this message");
     this.globalCommand.helpCallback = callback;
-    this.shwHelpOnExit = true;
+    this.showHelpOnExit = true;
     return this;
   }
   /**
@@ -589,7 +599,7 @@ class CAC extends events.EventEmitter {
     // 循环已配置的命令
     for (const command of this.commands) {
       const parsed = this.mri(argv.slice(2), command);
-      const commandName= parsed.args[0];
+      const commandName = parsed.args[0];
       if (command.isMatched(commandName)) {
         // 已经解析过了
         shouldParse = false;
@@ -604,7 +614,7 @@ class CAC extends events.EventEmitter {
       for (const command of this.commands) {
         if (command.name === "") {
           shouldParse = false;
-          const parsed = this.mri(slice(2), command);
+          const parsed = this.mri(argv.slice(2), command);
           this.setParsedInfo(parsed, command);
           this.emit(`command:!`, command);
         }
@@ -658,7 +668,7 @@ class CAC extends events.EventEmitter {
     // 合并parsed
     parsed = Object.keys(parsed).reduce((res, name) => {
       return __assign(__assign({}, res), {
-        [camelcaseOptionName(name)] : parsed[name]
+        [camelcaseOptionName(name)]: parsed[name]
       });
     }, { _: [] });
     const args = parsed._;
