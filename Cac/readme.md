@@ -194,3 +194,73 @@ cli.command('[root]', "vite启动本地服务").ignoreOptionDefaultValue();
 ```
 
 ### 二、一个完整的例子
+
+```javascript
+
+// 解析命令行参数
+const cac_1 = require("cac");
+
+// 指定名称
+const cli = cac_1.cac(`vite`);
+
+
+// 全局options
+cli
+  .option('--config <file>, -c <file>', `[string]  use specified config file`)
+  .option('--debug [feat]', `[string | boolean]  show debug logs`)
+  .option('--mode <mode>, -m <mode>', `[string]  specify env mode (default: 'development' for dev, 'production' for build)`)
+  .option('--jsx <preset>', `['vue' | 'preact' | 'react']  choose jsx preset (default: 'vue')`)
+  .option('--jsx-factory <string>', `[string]  (default: React.creatElement)`)
+  .option('--jsx-fragment <string>', `[string]  (default: React.Fragment)`);
+
+// 服务配置 serve
+cli
+  .command('[root]') // 默认名 e.g. npm run dev   package.json -> script -> dev: 'vite dev'
+  .alias('serve') // 别名为serve e.g. npm run serve
+  .option('--port <port>', `[number] port to listen to`)
+  .option('--force', `[boolean]  force the optimizer to ignore the cache and re-bundle`)
+  .option('--https', `[boolean]  start the server with TLS and HTTP/2 enabled`)
+  .option('--open', `[boolean]  open browser on server start`)
+  .action(async (root, argv) => {
+    if (root) {
+      argv.root = root;
+    }
+    const options = await resolveOptions({ arg, defaultMode: 'development' /* serve 时默认 'development' */});
+    return runServe(options);
+  });
+
+// 打包配置 build
+cli
+  .command('build [root]')
+  .option('--entry <file>', `[string]  entry file for build (default: index.html)`)
+  .option('--base <path>', `[string]  public base path (default: /)`)
+  .option('--outDir <dir>', `[string]  output directory (default: dist)`)
+  .option('--assetsDir <dir>', `[string]  directory under outDir to place assets in (default: _assets)`)
+  .option('--assetsInlineLimit <number>', `[number]  static asset base64 inline threshold in bytes (default: 4096)`)
+  .option('--ssr', `[boolean]  build for server-side rendering`)
+  .option('--sourcemap', `[boolean]  output source maps for build (default: false)`)
+  .option('--minify [minifier]', `[boolean | 'terser' | 'esbuild']  enable/disable minification, or specify minifier to use (default: terser)`)
+  .action(async (root, argv) => {
+    if (root) {
+        argv.root = root;
+    }
+    const options = await resolveOptions({ argv, defaultMode: 'production' /* serve 时默认 'production' */});
+    return runBuild(options);
+  });
+
+// 最优化 optimize
+cli
+  .command('optimize [root]')
+  .option('--force', `[boolean]  force the optimizer to ignore the cache and re-bundle`)
+  .action(async (root, argv) => {
+    if (root) {
+      argv.root = root;
+    }
+    const options = await resolveOptions({ argv, defaultMode: 'development' });
+    return runOptimize(options);
+  });
+  cli.help();
+  cli.version(require('../../package.json').version);
+  cli.parse();
+```
+
